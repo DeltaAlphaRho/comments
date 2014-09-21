@@ -30,7 +30,7 @@
 (def users (atom {"friend@gmail.com" {:username "friend@gmail.com" 
                                       :password (creds/hash-bcrypt "clojure")
                                       :roles #{::commenter}}
-                  "admin@example.com" {:username "admin"
+                  "admin@example.com" {:username "admin@example.com"
                                        :password (creds/hash-bcrypt "admin")
                                        :roles #{::admin}}
                   "moderator@example.com" {:username "moderator@example.com"
@@ -130,13 +130,19 @@
   [:body :div.navbar :ul [:li html/first-of-type]] (html/set-attr :class "active")
   [:body] (html/append (html/html [:script (browser-connected-repl-js)])))
 
-;;; App page
+;;; App pages
 (html/deftemplate welcome (io/resource "public/welcome.html")
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
   [:body] (html/append
            (html/html [:script (browser-connected-repl-js)]))
   [#{:span.user}] (html/content (trim-email-address (get-friend-username req) )))
+
+(html/deftemplate moderate (io/resource "public/moderate.html")
+  [req])
+
+(html/deftemplate admin (io/resource "public/admin.html")
+  [req])
 
 ;;; Logging/Debugging
 (defn log-request [req]
@@ -168,7 +174,9 @@
         (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
         (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
       (resp/redirect "/reregister")))  
-  (not-found (landing {:uri  "PageNotFound"}))) 
+  (GET "/admin" req (friend/authorize #{::admin} (admin req)))
+  (GET "/moderate" req (friend/authorize #{::moderator} (moderate req)))
+  (not-found (landing {:uri "PageNotFound"}))) 
  
 (def secured-site
   (-> unsecured-site
