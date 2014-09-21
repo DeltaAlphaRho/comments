@@ -168,12 +168,13 @@
   (GET "/login" req (login req))
   (GET "/logout" req (friend/logout* (resp/redirect "/")))
   (GET "/reregister" req (reregister req))
-  (POST "/register" {{:keys [username password roles] :or {roles "commenter"} :as params} :params :as req}
-    (if (check-registration username password roles)
-      (let [user (create-user :username username :password password :roles roles)]        
-        (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
-        (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
-      (resp/redirect "/reregister")))  
+  (POST "/register" {{:keys [username password] :as params} :params :as req}
+    (let [roles "commenter"]
+      (if (check-registration username password roles)
+        (let [user (create-user :username username :password password :roles roles)]        
+          (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
+          (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
+        (resp/redirect "/reregister"))))  
   (GET "/admin" req (friend/authorize #{::admin} (admin req)))
   (GET "/moderate" req (friend/authorize #{::moderator} (moderate req)))
   (not-found (landing {:uri "PageNotFound"}))) 
