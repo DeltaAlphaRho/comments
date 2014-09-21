@@ -47,7 +47,7 @@
        (find-keyword (str *ns*) roles)))
 
 (defn- create-user
-  [{:keys [username password roles] :as user-data}]
+  [& {:keys [username password roles] :as user-data}]
   (let [lower-case-username (str/lower-case username)]
     (->  user-data (assoc :username lower-case-username
                           :password (creds/hash-bcrypt password)
@@ -162,9 +162,9 @@
   (GET "/login" req (login req))
   (GET "/logout" req (friend/logout* (resp/redirect "/")))
   (GET "/reregister" req (reregister req))
-  (POST "/register" {{:keys [username password roles] :as params} :params :as req}
+  (POST "/register" {{:keys [username password roles] :or {roles "commenter"} :as params} :params :as req}
     (if (check-registration username password roles)
-      (let [user (create-user (select-keys params [:username :password :roles]))]        
+      (let [user (create-user :username username :password password :roles roles)]        
         (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
         (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
       (resp/redirect "/reregister")))  
