@@ -43,10 +43,6 @@
 (defn get-friend-username [req] ; This doesn't smell right...
   (:username (second (first (:authentications (:cemerick.friend/identity (:session req)))))))
 
-
-#_(defn get-friend-username [req] ; This doesn't smell right...
-  (:username (second (first (:authentications (:cemerick.friend/identity (:session req)))))))
-
 ;;;destructure?
 ;;;get-in?
 
@@ -169,7 +165,7 @@
                             :default-landing-uri "/welcome"
                             :credential-fn #(creds/bcrypt-credential-fn @users %)
                             :workflows [(workflows/interactive-form)]})
-      ; (wrap-verbose) ; Logging/Debugging
+      (wrap-verbose) ; Logging/Debugging
       ; required Ring middlewares
       (wrap-keyword-params)
       (wrap-nested-params)
