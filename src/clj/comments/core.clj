@@ -37,6 +37,8 @@
                                            :password (creds/hash-bcrypt "moderator")
                                            :roles #{::moderator}}}))
 
+(derive ::admin ::moderator)
+(derive ::moderator ::user)
 
 (defn check-registration [username password] ; strong password, non-blank username, doesn't already exist
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
