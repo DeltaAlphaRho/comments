@@ -32,7 +32,11 @@
                                       :roles #{::user}}
                   "admin@example.com" {:username "admin"
                                        :password (creds/hash-bcrypt "admin")
-                                       :roles #{::admin}}}))
+                                       :roles #{::admin}}
+                  "moderator@example.com" {:username "moderator@example.com"
+                                           :password (creds/hash-bcrypt "moderator")
+                                           :roles #{::moderator}}}))
+
 
 (defn check-registration [username password] ; strong password, non-blank username, doesn't already exist
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
