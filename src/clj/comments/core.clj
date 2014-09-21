@@ -27,7 +27,8 @@
 
 ;;; Friend atom and accessor functions
 
-(def users (atom {"friend@gmail.com" {:username "friend@gmail.com" :password (creds/hash-bcrypt "clojure")}}))
+(def users (atom {"friend@gmail.com" {:username "friend@gmail.com" :password (creds/hash-bcrypt "clojure")}
+                  "admin@example.com" {:username "admin" :password (creds/hash-bcrypt "admin")}}))
 
 (defn check-registration [username password] ; strong password, non-blank username, doesn't already exist
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
