@@ -1,6 +1,7 @@
 (defproject comments "0.0.1-SNAPSHOT"
-  :description "Commentingx Plugin for Websites"
-  :url "http://"
+  :description "Comments Plugin for Websites"
+  :min-lein-version "2.0.0"
+  :url "http://104.131.30.116:3449"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :source-paths ["src/clj" "src/cljs"]
@@ -34,17 +35,17 @@
                                                     :optimizations :none
                                                     :source-map true}}]}}}
   :main comments.core
+  :uberjar-name "comments.jar"
 
   :figwheel {:http-server-root "public" ;; default and assumes "resources" 
              :server-port 3449 ;; default
              ;; :css-dirs ["public/resources/css"] ;; watch and update CSS
-             :ring-handler comments.core/secured-site
+             ;; :ring-handler comments.core/secured-site
              }
   
-  
   :ring {:handler comments.core/secured-site}
-  ;; :ring :handler comments.core/secured-site
-  ;;       :init comments.core/-main
-  ;;       :listener-class comments
+  ;; :init comments.core/-main
+  ;; :listener-class comments
   
-)
+  :aliases {"server"  ["trampoline" "run" "-m" "comments.core"]}  
+  )

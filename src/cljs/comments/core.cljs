@@ -10,8 +10,6 @@
 (println "Changes to this text will display in your javascript console on file save.")
 
 (fw/watch-and-reload
- :jsload-callback (fn []
-                    ;; (stop-and-start-my app)
-                    ))
-
+  :websocket-url   "ws://localhost:3449/figwheel-ws"
+  :jsload-callback (fn [] (print "reloaded")))
 
