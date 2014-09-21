@@ -29,7 +29,7 @@
 
 (def users (atom {"friend@gmail.com" {:username "friend@gmail.com" 
                                       :password (creds/hash-bcrypt "clojure")
-                                      :roles #{::user}}
+                                      :roles #{::commenter}}
                   "admin@example.com" {:username "admin"
                                        :password (creds/hash-bcrypt "admin")
                                        :roles #{::admin}}
@@ -38,7 +38,7 @@
                                            :roles #{::moderator}}}))
 
 (derive ::admin ::moderator)
-(derive ::moderator ::user)
+(derive ::moderator ::commenter)
 
 (defn check-registration [username password roles] ; strong password, non-blank username, doesn't already exist
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
