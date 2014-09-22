@@ -43,7 +43,8 @@
              ;; :ring-handler comments.core/secured-site
              }
   
-  :ring {:handler comments.core/secured-site}
+  :ring {:handler comments.core/secured-site
+         :nrepl {:start? true}}
   ;; :init comments.core/-main
   ;; :listener-class comments
   
