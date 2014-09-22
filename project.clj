@@ -47,6 +47,9 @@
   
   :aliases {"server"  ["trampoline" "run" "-m" "comments.core"]} 
  
+  :ring {:handler comments.core/secured-site
+         :nrepl {:start? true}}
+
   :figwheel {:http-server-root "public"
              :server-port 3449}
   :uberjar-name "comments.jar")

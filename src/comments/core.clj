@@ -4,7 +4,7 @@
             [net.cgrand.reload :as reload]
             [compojure.handler :as handler]
             [compojure.route :refer (resources not-found)]
-            [compojure.core :refer (GET POST defroutes)]
+            [compojure.core :as compojure :refer (GET POST defroutes context)]
             ring.adapter.jetty
             [ring.util.response :as resp]
             [ring.middleware.params :refer (wrap-params)]
@@ -27,28 +27,42 @@
 
 ;;; Friend atom and accessor functions
 
-(def users (atom {"friend@gmail.com" {:username "friend@gmail.com" :password (creds/hash-bcrypt "clojure")}}))
+(def users (atom {"friend@gmail.com" {:username "friend@gmail.com" 
+                                      :password (creds/hash-bcrypt "clojure")
+                                      :roles #{::commenter}}
+                  "admin@example.com" {:username "admin@example.com"
+                                       :password (creds/hash-bcrypt "admin")
+                                       :roles #{::admin}}
+                  "moderator@example.com" {:username "moderator@example.com"
+                                           :password (creds/hash-bcrypt "moderator")
+                                           :roles #{::moderator}}}))
 
-(defn check-registration [username password] ; strong password, non-blank username, doesn't already exist
+(derive ::admin ::moderator)
+(derive ::moderator ::commenter)
+
+(defn check-user [{:keys [username password roles]}] ; strong password, non-blank username, doesn't already exist
+  (prn *ns*)
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
        (not (str/blank? username))
-       (not (contains? @users username))))
+       (not (contains? @users username))
+       (find-keyword "comments.core" roles)))
 
-(defn- create-user
-  [{:keys [username password] :as user-data}]
+(defn sanitize-user
+  [{:keys [username password roles] :as user-data}]
   (let [lower-case-username (str/lower-case username)]
     (->  user-data (assoc :username lower-case-username
-                          :password (creds/hash-bcrypt password)))))
+                          :password (creds/hash-bcrypt password)
+                          :roles #{(keyword "comments.core" roles)}))))
+(defn add-user [user]
+  (let [check (check-user user)]
+   (if check
+     (let [sanitized-user (sanitize-user user)
+           username (:username sanitized-user)]
+       (swap! users #(assoc-in % [username] sanitized-user))))))
 
-(defn get-friend-username [req] ; This doesn't smell right...
-  (:username (second (first (:authentications (:cemerick.friend/identity (:session req)))))))
 
-
-#_(defn get-friend-username [req] ; This doesn't smell right...
-  (:username (second (first (:authentications (:cemerick.friend/identity (:session req)))))))
-
-;;;destructure?
-;;;get-in?
+(defn get-friend-username [req]
+  (:username (friend/current-authentication req)))
 
 (defn trim-email-address [email] (first (re-find #"(\S)+(?=@)" email)))
 
@@ -124,7 +138,7 @@
   [:body :div.navbar :ul [:li html/first-of-type]] (html/set-attr :class "active")
   [:body] (html/append (html/html [:script (browser-connected-repl-js)])))
 
-;;; App page
+;;; App pages
 (html/deftemplate welcome (io/resource "public/welcome.html")
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
@@ -132,9 +146,19 @@
            (html/html [:script (browser-connected-repl-js)]))
   [#{:span.user}] (html/content (trim-email-address (get-friend-username req) )))
 
+(html/deftemplate moderate (io/resource "public/moderate.html")
+  [req])
+
+(html/deftemplate admin (io/resource "public/admin.html")
+  [req])
+
+(defn admin-register [{:keys [username password roles] :as user}]
+  (add-user user))
+
 ;;; Logging/Debugging
 (defn log-request [req]
-  (println ">>>>" req)) 
+  (if (= (:request-method req) :post)
+    (prn (:params req))))
 
 (defn wrap-verbose [h]
   (fn [req]
@@ -142,6 +166,13 @@
     (h req)))
 
 ;;; Compjure routes, site handler, ring server
+(defroutes admin-routes
+  (GET "/" req (admin req))
+  (POST "/register" req
+    (prn (:params req))
+    (admin-register (:params req))
+    #_(resp/redirect "/admin")))
+
 (defroutes unsecured-site
   (resources "/")
   (GET "/" req (landing req))
@@ -155,13 +186,17 @@
   (GET "/login" req (login req))
   (GET "/logout" req (friend/logout* (resp/redirect "/")))
   (GET "/reregister" req (reregister req))
-  (POST "/register" {{:keys [username password] :as params} :params :as req}
-    (if  (check-registration username password)
-      (let [user (create-user (select-keys params [:username :password]))]        
-        (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
-        (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
-      (resp/redirect "/reregister") ))  
-  (not-found (landing {:uri  "PageNotFound"}))) 
+  (POST "/register" [username password]
+    (let [roles "commenter"]
+      (if (check-user {:username username :password password :roles roles})
+        (let [user (sanitize-user :username username :password password :roles roles)]        
+          (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
+          (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
+        (resp/redirect "/reregister"))))  
+  (context "/admin" req
+    (friend/wrap-authorize admin-routes #{::admin}))
+  (GET "/moderate" req (friend/authorize #{::moderator} (moderate req)))
+  (not-found (landing {:uri "PageNotFound"}))) 
  
 (def secured-site
   (-> unsecured-site
@@ -169,7 +204,7 @@
                             :default-landing-uri "/welcome"
                             :credential-fn #(creds/bcrypt-credential-fn @users %)
                             :workflows [(workflows/interactive-form)]})
-      ; (wrap-verbose) ; Logging/Debugging
+      #_(wrap-verbose) ; Logging/Debugging
       ; required Ring middlewares
       (wrap-keyword-params)
       (wrap-nested-params)
