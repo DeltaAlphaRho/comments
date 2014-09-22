@@ -41,17 +41,18 @@
 (derive ::moderator ::commenter)
 
 (defn check-user [{:keys [username password roles]}] ; strong password, non-blank username, doesn't already exist
+  (prn *ns*)
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
        (not (str/blank? username))
        (not (contains? @users username))
-       (find-keyword (str *ns*) roles)))
+       (find-keyword "comments.core" roles)))
 
 (defn sanitize-user
   [{:keys [username password roles] :as user-data}]
   (let [lower-case-username (str/lower-case username)]
     (->  user-data (assoc :username lower-case-username
                           :password (creds/hash-bcrypt password)
-                          :roles #{(keyword (str *ns*) roles)}))))
+                          :roles #{(keyword "comments.core" roles)}))))
 (defn add-user [user]
   (let [check (check-user user)]
    (if check
@@ -156,8 +157,8 @@
 
 ;;; Logging/Debugging
 (defn log-request [req]
-  (println ">>>>" req)
-  (println "users" @users)) 
+  (if (= (:request-method req) :post)
+    (prn (:params req))))
 
 (defn wrap-verbose [h]
   (fn [req]
@@ -168,8 +169,9 @@
 (defroutes admin-routes
   (GET "/" req (admin req))
   (POST "/register" req
+    (prn (:params req))
     (admin-register (:params req))
-    (resp/redirect "/admin")))
+    #_(resp/redirect "/admin")))
 
 (defroutes unsecured-site
   (resources "/")
