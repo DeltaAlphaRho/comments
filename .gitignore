@@ -1,4 +1,5 @@
 /target/stale
+/target
 /lib
 /checkouts
 /resources/public/scripts/compiled

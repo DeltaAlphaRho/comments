@@ -212,5 +212,5 @@
 
 (defn -main []
   (defonce ^:private server
-    (ring.adapter.jetty/run-jetty #'secured-site {:port 8080 :join? false}))
+    (ring.adapter.jetty/run-jetty #'secured-site {:port 5000 :join? false}))
   server)
