@@ -4,7 +4,7 @@
             [net.cgrand.reload :as reload]
             [compojure.handler :as handler]
             [compojure.route :refer (resources not-found)]
-            [compojure.core :refer (GET POST defroutes)]
+            [compojure.core :as compojure :refer (GET POST defroutes context)]
             ring.adapter.jetty
             [ring.util.response :as resp]
             [ring.middleware.params :refer (wrap-params)]
@@ -40,18 +40,25 @@
 (derive ::admin ::moderator)
 (derive ::moderator ::commenter)
 
-(defn check-registration [username password roles] ; strong password, non-blank username, doesn't already exist
+(defn check-user [{:keys [username password roles]}] ; strong password, non-blank username, doesn't already exist
   (and (not (nil? (re-matches #"^(?=.*\d)(?=.*[a-zA-Z]).{7,50}$" password)))
        (not (str/blank? username))
        (not (contains? @users username))
        (find-keyword (str *ns*) roles)))
 
-(defn- create-user
-  [& {:keys [username password roles] :as user-data}]
+(defn sanitize-user
+  [{:keys [username password roles] :as user-data}]
   (let [lower-case-username (str/lower-case username)]
     (->  user-data (assoc :username lower-case-username
                           :password (creds/hash-bcrypt password)
                           :roles #{(keyword (str *ns*) roles)}))))
+(defn add-user [user]
+  (let [check (check-user user)]
+   (if check
+     (let [sanitized-user (sanitize-user user)
+           username (:username sanitized-user)]
+       (swap! users #(assoc-in % [username] sanitized-user))))))
+
 
 (defn get-friend-username [req]
   (:username (friend/current-authentication req)))
@@ -144,6 +151,9 @@
 (html/deftemplate admin (io/resource "public/admin.html")
   [req])
 
+(defn admin-register [{:keys [username password roles] :as user}]
+  (add-user user))
+
 ;;; Logging/Debugging
 (defn log-request [req]
   (println ">>>>" req)
@@ -155,6 +165,12 @@
     (h req)))
 
 ;;; Compjure routes, site handler, ring server
+(defroutes admin-routes
+  (GET "/" req (admin req))
+  (POST "/register" req
+    (admin-register (:params req))
+    (resp/redirect "/admin")))
+
 (defroutes unsecured-site
   (resources "/")
   (GET "/" req (landing req))
@@ -168,14 +184,15 @@
   (GET "/login" req (login req))
   (GET "/logout" req (friend/logout* (resp/redirect "/")))
   (GET "/reregister" req (reregister req))
-  (POST "/register" {{:keys [username password] :as params} :params :as req}
+  (POST "/register" [username password]
     (let [roles "commenter"]
-      (if (check-registration username password roles)
-        (let [user (create-user :username username :password password :roles roles)]        
+      (if (check-user {:username username :password password :roles roles})
+        (let [user (sanitize-user :username username :password password :roles roles)]        
           (swap! users #(-> % (assoc (str/lower-case username) user))) ; (println "user is " user)        
           (friend/merge-authentication (resp/redirect "/welcome") user)) ; (println "register redirect req: " req)
         (resp/redirect "/reregister"))))  
-  (GET "/admin" req (friend/authorize #{::admin} (admin req)))
+  (context "/admin" req
+    (friend/wrap-authorize admin-routes #{::admin}))
   (GET "/moderate" req (friend/authorize #{::moderator} (moderate req)))
   (not-found (landing {:uri "PageNotFound"}))) 
  
@@ -185,7 +202,7 @@
                             :default-landing-uri "/welcome"
                             :credential-fn #(creds/bcrypt-credential-fn @users %)
                             :workflows [(workflows/interactive-form)]})
-      (wrap-verbose) ; Logging/Debugging
+      #_(wrap-verbose) ; Logging/Debugging
       ; required Ring middlewares
       (wrap-keyword-params)
       (wrap-nested-params)
