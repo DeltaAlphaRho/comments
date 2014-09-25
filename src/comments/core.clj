@@ -1,6 +1,7 @@
 (ns comments.core
   (:require [comments.redirect :refer (wrap-drop-www)]
-            [cemerick.austin.repls :refer (browser-connected-repl-js)]
+            [comments.websockets :as ws]
+            [comments.brepl :refer (brepl brepl-injection)]
             [net.cgrand.enlive-html :as html]
             [net.cgrand.reload :as reload]
             [compojure.handler :as handler]
@@ -111,17 +112,17 @@
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
   [:body :#content] (html/substitute (non-app-content req))
-  [:body] (html/append (html/html [:script (browser-connected-repl-js)])))
+  [:body] (brepl-injection))
 
 ;;; Default page for erroneous logins 
 (html/deftemplate login (io/resource "public/landing.html")
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
                                         ;[:body :#content] (html/substitute (non-app-content req))
-  [:body] (html/append (html/html [:script (browser-connected-repl-js)]))
   [:body :div.navbar :input] (html/set-attr :style "color: red")
   [:body :div.navbar :input.username] (html/set-attr :placeholder "Re-enter Email Address")
-  [:body :div.navbar :input.password] (html/set-attr :placeholder "Re-enter Password"))
+  [:body :div.navbar :input.password] (html/set-attr :placeholder "Re-enter Password")
+  [:body] (brepl-injection))
 
 ;;; Page for erroneous registrations
 (html/deftemplate reregister (io/resource "public/landing.html")
@@ -129,23 +130,23 @@
   [:body :div.navbar] (html/substitute (navbar req))
   [:body :#content :form :input] (html/set-attr :class "input-block-level btn-lg register alert-danger")
   [:body :div.navbar :ul [:li html/first-of-type]] (html/set-attr :class "active")
-  [:body] (html/append (html/html [:script (browser-connected-repl-js)])))
+  [:body] (brepl-injection))
 
 ;;; App page
 (html/deftemplate welcome (io/resource "public/welcome.html")
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
-  [:body] (html/append
-           (html/html [:script (browser-connected-repl-js)]))
-  [#{:span.user}] (html/content (trim-email-address (get-friend-username req) )))
+  [#{:span.user}] (html/content (trim-email-address (get-friend-username req) ))
+  [:body] (brepl-injection))
 
 ;;; Comment box template
 (html/deftemplate comments "public/welcome.html"
   [req]
   [:body :div.navbar] (html/substitute (navbar req))
   [:div.container :h1] (html/substitute nil)
-  [:body] (html/append
-            (html/html (comment-description "Thing we are commenting on..."))))
+  [:div.navbar] (html/after
+            (html/html (comment-description "Thing we are commenting on...")))
+  [:body] (brepl-injection))
 
 
 ;;; Logging/Debugging
@@ -164,6 +165,7 @@
   (GET "/about" req (landing req))
   (GET "/contact" req (landing req))
   (GET "/comments" req (comments req))
+  (GET "/comments/ws" [] ws/comment-ws)
   (GET "/welcome" req
                                         ;(println "welcome req:" req)
                                         ;(println "(:user (req :params))" (:username (req :params)))
