@@ -13,6 +13,9 @@
                  [ring "1.3.1"]
                  [enlive "1.1.5"]
                  [com.cemerick/friend "0.2.0"]
+                 [org.clojure/core.cache "0.6.3"]
+                 [org.clojure/core.memoize "0.5.6" :exclusions [org.clojure/core.cache]]
+                 [org.clojure/core.async "0.1.346.0-17112a-alpha"]
 
                  ;; clojurescript
                  [org.clojure/clojurescript "0.0-2280"]
@@ -40,13 +43,13 @@
                            :optimizations :none
                            :pretty-print true
                            :source-map true}}]}
- 
+  
   :profiles {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
                                   [ring-mock "0.1.5"]]
                    :repl-options {:init-ns comments.core}}}
   
   :aliases {"server"  ["trampoline" "run" "-m" "comments.server"]} 
- 
+  
   :figwheel {:http-server-root "public"
              :server-port 3449}
   :uberjar-name "comments.jar")
